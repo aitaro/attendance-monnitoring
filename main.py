@@ -3,7 +3,6 @@ import requests
 from datetime import timedelta
 from datetime import datetime
 import pandas as pd
-import pandas as pd
 import matplotlib as mpl
 import re
 mpl.use("agg")

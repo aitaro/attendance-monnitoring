@@ -1,3 +1,6 @@
 flask
 slackclient
 Pillow
+pandas
+matplotlib
+gunicorn
