@@ -15,6 +15,8 @@ import numpy as np
 from threading import Thread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import os
+import urllib
+
 
 def users_info(user_id):
     client = slack.WebClient(token=os.getenv('SLACK_TOKEN'))
@@ -22,7 +24,9 @@ def users_info(user_id):
     res = client.users_info(
         user=user_id
     )
-    return [res['user']['profile']['display_name'], res['user']['profile']['image_72']]
+    # print(res)
+    name = res['user']['profile']['display_name'] or res['user']['profile']['real_name']
+    return [name, res['user']['profile']['image_72']]
 
 def backgroundworker(channel_id):
 
@@ -47,29 +51,37 @@ def backgroundworker(channel_id):
         total_times = 0
         for time in times:
             total_times += float(time[:-1])
+        if total_times == 0: continue
 
         users_df.loc[user_id] = users_info(user_id) + [total_times]
         print(user_id)
+        print(users_info(user_id)[0])
+        print(users_info(user_id)[1])
         # import pdb; pdb.set_trace()     
 
+    # users_df.loc['123456'] = ['aitaro.chaya', 'https://avatars.slack-edge.com/2018-07-02/390580434608_8bde4a6e0c9a2c554f29_72.png', 2]
+    users_df = users_df.sort_values('hours')
     x = list(range(1, len(users_df.index) + 1))
     y = users_df.hours
-    label_x = users_df.name
-
-    # img_c = plt.imread('image/plant_cactus.png')
-    # img_b = plt.imread('image/Pteranodon.png')
-    imgs = map(lambda x: plt.imread(x), users_df.image)
 
     fig = plt.figure(figsize=(8, 2*len(users_df.index)))
     plt.barh(x, y, align="center", height=0.5)           # 中央寄せで棒グラフ作成
+    plt.yticks([]) 
 
+    print(users_df)
+
+    counter = 0
     for index, row in users_df.iterrows():
-        ax = fig.add_axes([0,0,0.1,1])
+        print(index)
+        ax = fig.add_axes([0 , 0.8 / len(users_df.index) * counter + 0.1, 0.1, 0.8 / len(users_df.index)])
         ax.axison = False
-        ax.imshow(list(imgs)[0])
-        ax.text(0,90,'chaya', fontsize=15)
+        # create a file-like object from the url
+        f = urllib.request.urlopen(row.image)
 
-        
+        ax.imshow(plt.imread(f, 0))
+        ax.text(0,90,row['name'], fontsize=15)
+        counter += 1
+
     plt.show()
 
     # plt.title("test")
@@ -78,10 +90,12 @@ def backgroundworker(channel_id):
     buf.seek(0)
 
 
+    client = slack.WebClient(token=os.getenv('SLACK_BOT_TOKEN'))
     client.files_upload(
         channels=channel_id,
         file=buf,
-        title="Test upload"
+        initial_comment="直近一週間の勤怠",
+        title="Attendance summary"
     )
 
 def main(request):
